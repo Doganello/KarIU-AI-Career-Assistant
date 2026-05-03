@@ -1,9 +1,12 @@
 ﻿from fastapi import APIRouter
-from app.api import auth, resume, jobs, ai_support
+from app.api.auth import router as auth_router
+from app.api.resume import router as resume_router
+from app.api.jobs import router as jobs_router
+from app.api.ai_support import router as ai_router
 
 router = APIRouter(prefix="/api")
 
-router.include_router(auth.router)
-router.include_router(resume.router)
-router.include_router(jobs.router)
-router.include_router(ai_support.router)
+router.include_router(auth_router)
+router.include_router(resume_router)
+router.include_router(jobs_router)
+router.include_router(ai_router)

@@ -1,25 +1,25 @@
-﻿from app.database.base import db
+﻿from datetime import datetime
+from typing import Optional
+from sqlalchemy import String, DateTime, Integer, Text, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
+from app.database.base import Base
 
-class User(db.Model):
-    __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
-from datetime import datetime
 
-class Vacancy(db.Model):
+class Vacancy(Base):
     __tablename__ = "vacancies"
 
-    id          = db.Column(db.Integer, primary_key=True)
-    title       = db.Column(db.String(200))
-    company     = db.Column(db.String(200))
-    description = db.Column(db.Text)
-    requirements = db.Column(db.Text)
-    salary_from = db.Column(db.Integer)
-    salary_to   = db.Column(db.Integer)
-    city        = db.Column(db.String(100))
-    work_format = db.Column(db.String(50))    # remote | office | hybrid
-    industry    = db.Column(db.String(100))
-    source      = db.Column(db.String(50))    # kariu | enbek | hh | rabota
-    source_url  = db.Column(db.String(500))
-    published_at = db.Column(db.DateTime)
-    parsed_at    = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active    = db.Column(db.Boolean, default=True)
+    id:           Mapped[int]              = mapped_column(primary_key=True)
+    title:        Mapped[str]              = mapped_column(String(200))
+    company:      Mapped[Optional[str]]    = mapped_column(String(200))
+    description:  Mapped[Optional[str]]    = mapped_column(Text)
+    requirements: Mapped[Optional[str]]    = mapped_column(Text)
+    salary_from:  Mapped[Optional[int]]    = mapped_column(Integer)
+    salary_to:    Mapped[Optional[int]]    = mapped_column(Integer)
+    city:         Mapped[Optional[str]]    = mapped_column(String(100))
+    work_format:  Mapped[Optional[str]]    = mapped_column(String(50))
+    industry:     Mapped[Optional[str]]    = mapped_column(String(100))
+    source:       Mapped[str]              = mapped_column(String(50))
+    source_url:   Mapped[Optional[str]]    = mapped_column(String(500), unique=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    parsed_at:    Mapped[datetime]         = mapped_column(DateTime, default=datetime.utcnow)
+    is_active:    Mapped[bool]             = mapped_column(Boolean, default=True)

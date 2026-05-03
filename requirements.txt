@@ -16,3 +16,4 @@ beautifulsoup4==4.12.3
 pydantic==2.7.4
 python-telegram-bot==21.3
 pydantic-settings==2.3.4
+sqlalchemy-utils==0.41.2

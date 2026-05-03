@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+﻿from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.database.session import get_db
@@ -19,7 +19,7 @@ import os
 router = APIRouter(prefix="/resume", tags=["Resume"])
 
 
-# ── Профиль ──────────────────────────────────────────────────────────────────
+# ── Профиль ───────────────────────────────────────────────────────
 
 @router.get("/profile", response_model=GraduateRead)
 def get_profile(
@@ -46,7 +46,7 @@ def update_profile(
     return graduate
 
 
-# ── Опыт работы ──────────────────────────────────────────────────────────────
+# ── Опыт работы ───────────────────────────────────────────────────
 
 @router.post("/experience", response_model=ExperienceRead, status_code=201)
 def add_experience(
@@ -76,7 +76,7 @@ def delete_experience(
     db.commit()
 
 
-# ── Сертификаты ───────────────────────────────────────────────────────────────
+# ── Сертификаты ───────────────────────────────────────────────────
 
 @router.post("/certificate", response_model=CertificateRead, status_code=201)
 def add_certificate(
@@ -106,7 +106,7 @@ def delete_certificate(
     db.commit()
 
 
-# ── Навыки ────────────────────────────────────────────────────────────────────
+# ── Навыки ────────────────────────────────────────────────────────
 
 @router.post("/skill", response_model=SkillRead, status_code=201)
 def add_skill(
@@ -136,7 +136,7 @@ def delete_skill(
     db.commit()
 
 
-# ── Генерация CV ──────────────────────────────────────────────────────────────
+# ── Генерация CV ──────────────────────────────────────────────────
 
 @router.post("/generate")
 def generate_cv(
@@ -148,7 +148,6 @@ def generate_cv(
     graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
     if not graduate:
         raise HTTPException(status_code=404, detail="Профиль не найден")
-
     generator = CVGenerator()
     filename  = generator.generate(graduate, lang=lang, vacancy=target_vacancy)
     return {"download_url": f"/api/resume/download/{filename}"}
@@ -162,7 +161,7 @@ def download_cv(filename: str, current_user: User = Depends(get_current_user)):
     return FileResponse(path, filename=filename)
 
 
-# ── Оценка CV ─────────────────────────────────────────────────────────────────
+# ── Оценка CV ─────────────────────────────────────────────────────
 
 @router.post("/score")
 def score_cv(

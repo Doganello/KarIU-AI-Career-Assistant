@@ -1,15 +1,18 @@
-﻿from app.database.base import db
+﻿from datetime import date
+from typing import Optional
+from sqlalchemy import String, Date, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.database.base import Base
 
-class User(db.Model):
-    __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
 
-class Certificate(db.Model):
+class Certificate(Base):
     __tablename__ = "certificates"
 
-    id          = db.Column(db.Integer, primary_key=True)
-    graduate_id = db.Column(db.Integer, db.ForeignKey("graduates.id"))
-    title       = db.Column(db.String(200))
-    issuer      = db.Column(db.String(200))
-    issued_date = db.Column(db.Date)
-    url         = db.Column(db.String(300))
+    id:          Mapped[int]            = mapped_column(primary_key=True)
+    graduate_id: Mapped[int]            = mapped_column(ForeignKey("graduates.id"))
+    title:       Mapped[str]            = mapped_column(String(200))
+    issuer:      Mapped[Optional[str]]  = mapped_column(String(200))
+    issued_date: Mapped[Optional[date]] = mapped_column(Date)
+    url:         Mapped[Optional[str]]  = mapped_column(String(300))
+
+    graduate: Mapped["Graduate"] = relationship("Graduate", back_populates="certificates")
