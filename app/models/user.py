@@ -1,10 +1,22 @@
-﻿from datetime import datetime
+﻿from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING
+
 from sqlalchemy import String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from passlib.context import CryptContext
 from app.database.base import Base
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+if TYPE_CHECKING:
+    from .graduate import Graduate
+
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12
+)
 
 
 class User(Base):
@@ -17,11 +29,18 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     graduate: Mapped["Graduate"] = relationship(
-        "Graduate", back_populates="user", uselist=False, cascade="all, delete-orphan"
+        "Graduate",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
     )
 
     def set_password(self, raw: str) -> None:
+        if len(raw.encode('utf-8')) > 72:
+            raw = raw[:72]
         self.password = pwd_context.hash(raw)
 
     def check_password(self, raw: str) -> bool:
+        if len(raw.encode('utf-8')) > 72:
+            raw = raw[:72]
         return pwd_context.verify(raw, self.password)
