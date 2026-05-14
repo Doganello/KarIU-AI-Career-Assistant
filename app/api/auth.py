@@ -44,15 +44,10 @@ def login(
         response: Response,
         db: Session = Depends(get_db)
 ):
-    # Ищем пользователя
     user = db.query(User).filter_by(email=data.email).first()
     if not user or not user.check_password(data.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный email или пароль"
-        )
+        raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
-    # Создаем токен и устанавливаем куку
     token = create_access_token(user.id)
     set_auth_cookie(response, token)
 

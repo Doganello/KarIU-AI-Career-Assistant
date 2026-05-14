@@ -17,28 +17,21 @@ from app.services.cv_scorer import CVScorer
 import os
 import logging
 
-# Настраиваем логирование
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/resume", tags=["Resume"])
 
 
-# Profile endpoints
 @router.get("/profile", response_model=GraduateRead)
 def get_profile(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
     """Get current user's graduate profile"""
-    logger.info(f"Getting profile for user {current_user.id}")
-
     graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
     if not graduate:
-        logger.error(f"Graduate not found for user {current_user.id}")
         raise HTTPException(status_code=404, detail="Profile not found")
-
-    logger.info(f"Profile found: {graduate.id}")
     return graduate
 
 
@@ -48,21 +41,72 @@ def update_profile(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
-    """Update current user's graduate profile"""
-    logger.info(f"Updating profile for user {current_user.id}")
-    logger.info(f"Received data: {data.model_dump()}")
-
+    """Update current user's graduate profile with experiences and skills"""
     graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
     if not graduate:
-        logger.error(f"Graduate not found for user {current_user.id}")
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    # Update only provided fields
-    update_data = data.model_dump(exclude_unset=True)
+    # 1. Обновляем основные поля (без experiences, certificates, skills)
+    update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
         if value is not None:
             setattr(graduate, field, value)
             logger.info(f"Updated {field} = {value}")
+
+    # 2. Обновляем опыт работы (experiences)
+    if 'experiences' in data.model_dump(exclude_unset=True):
+        # Удаляем старый опыт
+        for exp in graduate.experiences[:]:  # Используем срез для копии
+            db.delete(exp)
+
+        # Добавляем новый опыт
+        for exp_data in data.experiences:
+            if exp_data.company and exp_data.position:  # Только заполненные
+                new_exp = Experience(
+                    graduate_id=graduate.id,
+                    company=exp_data.company,
+                    position=exp_data.position,
+                    description=exp_data.description,
+                    start_date=exp_data.start_date,
+                    end_date=exp_data.end_date,
+                    is_internship=exp_data.is_internship
+                )
+                db.add(new_exp)
+                logger.info(f"Added experience: {exp_data.company} - {exp_data.position}")
+
+    # 3. Обновляем сертификаты (если есть)
+    if 'certificates' in data.model_dump(exclude_unset=True):
+        for cert in graduate.certificates[:]:
+            db.delete(cert)
+
+        for cert_data in data.certificates:
+            if cert_data.title:
+                new_cert = Certificate(
+                    graduate_id=graduate.id,
+                    title=cert_data.title,
+                    issuer=cert_data.issuer,
+                    issued_date=cert_data.issued_date,
+                    url=cert_data.url
+                )
+                db.add(new_cert)
+                logger.info(f"Added certificate: {cert_data.title}")
+
+    # 4. Обновляем навыки (skills)
+    if 'skills' in data.model_dump(exclude_unset=True):
+        # Удаляем старые навыки
+        for skill in graduate.skills[:]:
+            db.delete(skill)
+
+        # Добавляем новые навыки
+        for skill_data in data.skills:
+            if skill_data.name:  # Только если есть название
+                new_skill = GraduateSkill(
+                    graduate_id=graduate.id,
+                    name=skill_data.name,
+                    level=skill_data.level
+                )
+                db.add(new_skill)
+                logger.info(f"Added skill: {skill_data.name} ({skill_data.level})")
 
     db.commit()
     db.refresh(graduate)
@@ -78,28 +122,57 @@ def create_or_update_profile(
         current_user: User = Depends(get_current_user),
 ):
     """Create or update graduate profile (POST fallback)"""
-    logger.info(f"POST profile for user {current_user.id}")
-
     graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
     if not graduate:
-        # Create new profile
         graduate = Graduate(user_id=current_user.id)
         db.add(graduate)
         db.flush()
 
-    # Update fields
-    update_data = data.model_dump(exclude_unset=True)
+    # Обновляем основные поля
+    update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
         if value is not None:
             setattr(graduate, field, value)
 
+    # Обновляем опыт работы
+    if 'experiences' in data.model_dump(exclude_unset=True):
+        for exp in graduate.experiences[:]:
+            db.delete(exp)
+
+        for exp_data in data.experiences:
+            if exp_data.company and exp_data.position:
+                new_exp = Experience(
+                    graduate_id=graduate.id,
+                    company=exp_data.company,
+                    position=exp_data.position,
+                    description=exp_data.description,
+                    start_date=exp_data.start_date,
+                    end_date=exp_data.end_date,
+                    is_internship=exp_data.is_internship
+                )
+                db.add(new_exp)
+
+    # Обновляем навыки
+    if 'skills' in data.model_dump(exclude_unset=True):
+        for skill in graduate.skills[:]:
+            db.delete(skill)
+
+        for skill_data in data.skills:
+            if skill_data.name:
+                new_skill = GraduateSkill(
+                    graduate_id=graduate.id,
+                    name=skill_data.name,
+                    level=skill_data.level
+                )
+                db.add(new_skill)
+
     db.commit()
     db.refresh(graduate)
-
     return graduate
 
 
-# Experience endpoints
+# ── Опыт работы (отдельные эндпоинты) ─────────────────────────────
+
 @router.post("/experience", response_model=ExperienceRead, status_code=201)
 def add_experience(
         data: ExperienceCreate,
@@ -137,7 +210,8 @@ def delete_experience(
     db.commit()
 
 
-# Certificate endpoints
+# ── Сертификаты ───────────────────────────────────────────────────
+
 @router.post("/certificate", response_model=CertificateRead, status_code=201)
 def add_certificate(
         data: CertificateCreate,
@@ -175,7 +249,8 @@ def delete_certificate(
     db.commit()
 
 
-# Skills endpoints
+# ── Навыки (отдельные эндпоинты) ─────────────────────────────────
+
 @router.post("/skill", response_model=SkillRead, status_code=201)
 def add_skill(
         data: SkillCreate,
@@ -213,7 +288,8 @@ def delete_skill(
     db.commit()
 
 
-# CV Generation endpoints
+# ── Генерация CV ──────────────────────────────────────────────────
+
 @router.post("/generate")
 def generate_cv(
         lang: str = "ru",
@@ -243,7 +319,8 @@ def download_cv(
     return FileResponse(path, filename=filename)
 
 
-# CV Scoring endpoints
+# ── Оценка CV ─────────────────────────────────────────────────────
+
 @router.post("/score")
 def score_cv(
         vacancy_text: str = "",

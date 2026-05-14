@@ -2,8 +2,8 @@
 
 
 class SkillCreate(BaseModel):
-    name:  str
-    level: str = "beginner"
+    name: str
+    level: str = "intermediate"
 
 
 class SkillRead(SkillCreate):
