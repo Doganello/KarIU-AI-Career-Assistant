@@ -1,28 +1,21 @@
 ﻿from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# Импорт настроек
 from app.config import settings
-
-# Импорт базы и моделей
 from app.database.base import Base, engine
-from app.models.user import User
-from app.models.educational_program import EducationalProgram
-from app.models.graduate import Graduate
-from app.models.experience import Experience
-from app.models.certificate import Certificate
-from app.models.skill import GraduateSkill
-from app.models.vacancy import Vacancy
-
 from app.api.router import router
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    print("✅ Таблицы созданы!")
-    print(f"✅ CORS origins: {settings.CORS_ORIGINS}")
+    logger.info("✅ Tables created!")
+    logger.info(f"✅ CORS origins: {settings.CORS_ORIGINS}")
     yield
 
 
@@ -32,15 +25,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ==================== CORS ====================
+# CORS - максимально открытый для разработки
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://host.docker.internal:5173",
+        "http://192.168.1.*:5173",  # Твой локальный IP
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
-# =============================================
 
 app.include_router(router)
 
@@ -52,3 +53,8 @@ def root():
         "docs": "/docs",
         "cors_origins": settings.CORS_ORIGINS
     }
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy", "environment": "docker"}

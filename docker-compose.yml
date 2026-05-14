@@ -10,12 +10,16 @@
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
+    networks:
+      - kariu_network
 
   redis:
     image: redis:7
     container_name: kariu_redis
     ports:
       - "6379:6379"
+    networks:
+      - kariu_network
 
   app:
     build: .
@@ -26,9 +30,19 @@
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      - CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","http://host.docker.internal:5173"]
     depends_on:
       - db
       - redis
+    networks:
+      - kariu_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Для доступа к хосту из контейнера
+
+networks:
+  kariu_network:
+    driver: bridge
 
 volumes:
   postgres_data:

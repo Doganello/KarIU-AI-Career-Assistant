@@ -1,5 +1,6 @@
 ﻿from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+import json
 
 
 class Settings(BaseSettings):
@@ -13,14 +14,21 @@ class Settings(BaseSettings):
 
     # JWT настройки
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 день
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
-    # CORS
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost",
-    ]
+    # CORS - парсим из строки если пришло как строка
+    CORS_ORIGINS_raw: str = '["http://localhost:5173","http://127.0.0.1:5173"]'
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        if isinstance(self.CORS_ORIGINS_raw, str):
+            return json.loads(self.CORS_ORIGINS_raw)
+        return self.CORS_ORIGINS_raw
+
+    # Дополнительные настройки
+    COOKIE_SECURE: bool = False
+    COOKIE_HTTPONLY: bool = True
+    COOKIE_SAMESITE: str = "lax"
 
     model_config = SettingsConfigDict(
         env_file=".env",
