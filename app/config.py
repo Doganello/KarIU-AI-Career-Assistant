@@ -8,15 +8,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
     JWT_SECRET_KEY: str
-    ANTHROPIC_API_KEY: str
-    TELEGRAM_BOT_TOKEN: str
+    ANTHROPIC_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
+    DEEPSEEK_API_KEY: str = ""  # ← Добавлено
+    TELEGRAM_BOT_TOKEN: str = ""
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT настройки
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
-    # CORS - парсим из строки если пришло как строка
+    # CORS
     CORS_ORIGINS_raw: str = '["http://localhost:5173","http://127.0.0.1:5173"]'
 
     @property
@@ -25,7 +27,6 @@ class Settings(BaseSettings):
             return json.loads(self.CORS_ORIGINS_raw)
         return self.CORS_ORIGINS_raw
 
-    # Дополнительные настройки
     COOKIE_SECURE: bool = False
     COOKIE_HTTPONLY: bool = True
     COOKIE_SAMESITE: str = "lax"

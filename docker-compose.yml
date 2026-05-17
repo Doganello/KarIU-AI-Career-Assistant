@@ -29,16 +29,21 @@
       - .:/app
     ports:
       - "8000:8000"
-    env_file: .env
     environment:
-      - CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","http://host.docker.internal:5173"]
+      - DEEPSEEK_API_KEY=sk-16948f26a38144d4b4872e1a9ebb8cc9
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/kariu_dev
+      - SECRET_KEY=abc123xyz789def456uvw012abc123xyz789def456uvw012abc123xyz789def4
+      - JWT_SECRET_KEY=def456uvw012abc123xyz789def456uvw012abc123xyz789def456uvw012def4
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=placeholder
+      - TELEGRAM_BOT_TOKEN=placeholder
+      - OPENROUTER_API_KEY=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
+      - CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
     depends_on:
       - db
       - redis
     networks:
       - kariu_network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # Для доступа к хосту из контейнера
 
 networks:
   kariu_network:

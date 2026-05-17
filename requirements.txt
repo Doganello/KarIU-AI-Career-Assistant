@@ -18,3 +18,4 @@ python-telegram-bot==21.3
 pydantic-settings==2.3.4
 sqlalchemy-utils==0.41.2
 bcrypt==4.2.1
+openai>=1.0.0

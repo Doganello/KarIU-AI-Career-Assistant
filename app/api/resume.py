@@ -7,6 +7,7 @@ from app.models.graduate import Graduate
 from app.models.experience import Experience
 from app.models.certificate import Certificate
 from app.models.skill import GraduateSkill
+from app.models.educational_program import EducationalProgram
 from app.schemas.graduate import GraduateCreate, GraduateRead
 from app.schemas.experience import ExperienceCreate, ExperienceRead
 from app.schemas.certificate import CertificateCreate, CertificateRead
@@ -22,6 +23,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/resume", tags=["Resume"])
 
+
+# ── Образовательные программы ─────────────────────────────────────
+
+@router.get("/educational-programs")
+def get_educational_programs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all educational programs"""
+    from app.models.educational_program import EducationalProgram
+    programs = db.query(EducationalProgram).order_by(EducationalProgram.id).all()
+    # Возвращаем только code и name, faculty не показываем
+    return [{"id": p.id, "code": p.code, "name": p.name} for p in programs]
+
+
+# ── Профиль ───────────────────────────────────────────────────────
 
 @router.get("/profile", response_model=GraduateRead)
 def get_profile(
@@ -46,22 +63,19 @@ def update_profile(
     if not graduate:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    # 1. Обновляем основные поля (без experiences, certificates, skills)
+    # 1. Обновляем основные поля - БЕЗ ПРОВЕРКИ if value is not None
     update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
-        if value is not None:
-            setattr(graduate, field, value)
-            logger.info(f"Updated {field} = {value}")
+        setattr(graduate, field, value)
+        logger.info(f"Updated {field} = {value}")
 
-    # 2. Обновляем опыт работы (experiences)
+    # 2. Обновляем опыт работы
     if 'experiences' in data.model_dump(exclude_unset=True):
-        # Удаляем старый опыт
-        for exp in graduate.experiences[:]:  # Используем срез для копии
+        for exp in graduate.experiences[:]:
             db.delete(exp)
 
-        # Добавляем новый опыт
         for exp_data in data.experiences:
-            if exp_data.company and exp_data.position:  # Только заполненные
+            if exp_data.company and exp_data.position:
                 new_exp = Experience(
                     graduate_id=graduate.id,
                     company=exp_data.company,
@@ -72,41 +86,20 @@ def update_profile(
                     is_internship=exp_data.is_internship
                 )
                 db.add(new_exp)
-                logger.info(f"Added experience: {exp_data.company} - {exp_data.position}")
 
-    # 3. Обновляем сертификаты (если есть)
-    if 'certificates' in data.model_dump(exclude_unset=True):
-        for cert in graduate.certificates[:]:
-            db.delete(cert)
-
-        for cert_data in data.certificates:
-            if cert_data.title:
-                new_cert = Certificate(
-                    graduate_id=graduate.id,
-                    title=cert_data.title,
-                    issuer=cert_data.issuer,
-                    issued_date=cert_data.issued_date,
-                    url=cert_data.url
-                )
-                db.add(new_cert)
-                logger.info(f"Added certificate: {cert_data.title}")
-
-    # 4. Обновляем навыки (skills)
+    # 3. Обновляем навыки
     if 'skills' in data.model_dump(exclude_unset=True):
-        # Удаляем старые навыки
         for skill in graduate.skills[:]:
             db.delete(skill)
 
-        # Добавляем новые навыки
         for skill_data in data.skills:
-            if skill_data.name:  # Только если есть название
+            if skill_data.name:
                 new_skill = GraduateSkill(
                     graduate_id=graduate.id,
                     name=skill_data.name,
                     level=skill_data.level
                 )
                 db.add(new_skill)
-                logger.info(f"Added skill: {skill_data.name} ({skill_data.level})")
 
     db.commit()
     db.refresh(graduate)
@@ -131,8 +124,7 @@ def create_or_update_profile(
     # Обновляем основные поля
     update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
-        if value is not None:
-            setattr(graduate, field, value)
+        setattr(graduate, field, value)
 
     # Обновляем опыт работы
     if 'experiences' in data.model_dump(exclude_unset=True):

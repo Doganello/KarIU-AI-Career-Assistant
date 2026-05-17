@@ -17,23 +17,23 @@ _interview_sessions: dict[str, InterviewSimulator] = {}
 
 class ChatMessage(BaseModel):
     message: str
-    lang:    str = "ru"
+    lang: str = "ru"
 
 
 class InterviewStart(BaseModel):
     interview_type: str
-    vacancy:        str = ""
-    lang:           str = "ru"
+    vacancy: str = ""
+    lang: str = "ru"
 
 
 class InterviewAnswer(BaseModel):
     session_id: str
-    answer:     str
+    answer: str
 
 
 class VacancyAnalysis(BaseModel):
     vacancy_text: str
-    lang:         str = "ru"
+    lang: str = "ru"
 
 
 @router.post("/chat")
@@ -53,9 +53,9 @@ def start_interview(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    graduate  = db.query(Graduate).filter_by(user_id=current_user.id).first()
+    graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
     simulator = InterviewSimulator()
-    first_q   = simulator.start(
+    first_q = simulator.start(
         interview_type=body.interview_type,
         vacancy=body.vacancy,
         graduate=graduate,

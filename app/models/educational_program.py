@@ -11,7 +11,6 @@ class EducationalProgram(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(20), unique=True)
     name: Mapped[str] = mapped_column(String(200))
-    faculty: Mapped[str] = mapped_column(String(200))
+    faculty: Mapped[str] = mapped_column(String(200), default="")  # Оставляем поле но пустое
 
-    # Убираем аннотацию
     graduates = relationship("Graduate", back_populates="program")
