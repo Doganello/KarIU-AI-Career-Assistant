@@ -24,7 +24,6 @@ class InterviewSimulator:
         self.candidate_name = graduate.first_name if hasattr(graduate,
                                                              'first_name') and graduate.first_name else "кандидат"
 
-        # Собираем реальные данные кандидата
         skills = ", ".join([s.name for s in graduate.skills]) if graduate.skills else "не указаны"
         exp_count = len(graduate.experiences) if graduate.experiences else 0
 
@@ -46,15 +45,19 @@ class InterviewSimulator:
                                                           'personal_qualities') and graduate.personal_qualities else "не указаны"
         specialty = graduate.specialty if hasattr(graduate, 'specialty') and graduate.specialty else "не указана"
 
-        # Определяем должность интервьюера в зависимости от вакансии и типа собеседования
-        interviewer_role = self._get_interviewer_role(self.vacancy, interview_type)
-
-        # Тип собеседования
         type_desc = {
             "hr": f"HR-интервью. Спрашивай про мотивацию, карьерные цели, работу в команде, стрессоустойчивость.",
             "technical": f"Техническое собеседование на {self.vacancy}. Спрашивай про профессиональные навыки, технологии, конкретные задачи.",
             "case": f"Кейс-интервью. Дай гипотетическую ситуацию по {self.vacancy} и спроси как кандидат будет действовать."
         }
+
+        # Определяем должность интервьюера
+        if interview_type == "hr":
+            interviewer_role = "HR-менеджер"
+        elif interview_type == "technical":
+            interviewer_role = "Технический специалист"
+        else:
+            interviewer_role = "Ведущий специалист"
 
         self.question_count = 0
         self.history = []
@@ -76,61 +79,11 @@ class InterviewSimulator:
 4. Вопросы должны быть по теме {self.vacancy}
 5. Используй данные кандидата (навыки, опыт)
 
-ПРИМЕР ПРАВИЛЬНОГО НАЧАЛА:
-"Здравствуйте, я {interviewer_role}. Какой у вас опыт в {self.vacancy}?"
+Пример: "Здравствуйте, я {interviewer_role}. Какой у вас опыт в {self.vacancy}?"
 
 Начни собеседование. Представься и задай первый вопрос."""
 
         return self._send(system, "start")
-
-    def _get_interviewer_role(self, vacancy: str, interview_type: str) -> str:
-        """Определяет должность интервьюера в зависимости от вакансии"""
-        vacancy_lower = vacancy.lower()
-
-        # Медицина
-        if any(word in vacancy_lower for word in ['фельдшер', 'врач', 'медсестра', 'хирург', 'терапевт', 'скорая']):
-            if interview_type == "hr":
-                return "HR-специалист медицинского центра"
-            elif interview_type == "technical":
-                return "Заведующий отделением"
-            else:
-                return "Старший фельдшер"
-
-        # Металлургия
-        if any(word in vacancy_lower for word in ['металлург', 'сталевар', 'прокатчик', 'литейщик', 'завод']):
-            if interview_type == "hr":
-                return "HR-специалист завода"
-            elif interview_type == "technical":
-                return "Начальник цеха"
-            else:
-                return "Мастер участка"
-
-        # IT / Программирование
-        if any(word in vacancy_lower for word in
-               ['программист', 'разработчик', 'python', 'java', 'фронтенд', 'бэкенд', 'it']):
-            if interview_type == "hr":
-                return "IT-рекрутер"
-            elif interview_type == "technical":
-                return "Tech Lead"
-            else:
-                return "Team Lead"
-
-        # Строительство
-        if any(word in vacancy_lower for word in ['строитель', 'прораб', 'инженер-строитель', 'стройка']):
-            if interview_type == "hr":
-                return "HR-специалист строительной компании"
-            elif interview_type == "technical":
-                return "Главный инженер"
-            else:
-                return "Руководитель проекта"
-
-        # По умолчанию
-        if interview_type == "hr":
-            return "HR-менеджер"
-        elif interview_type == "technical":
-            return "Руководитель отдела"
-        else:
-            return "Ведущий специалист"
 
     def answer(self, user_answer: str) -> str:
         self.question_count += 1
