@@ -22,6 +22,7 @@ class ChatMessage(BaseModel):
 
 class InterviewStart(BaseModel):
     interview_type: str
+    difficulty: str = "medium"  # easy, medium, hard
     vacancy: str = ""
     lang: str = "ru"
 
@@ -57,6 +58,7 @@ def start_interview(
     simulator = InterviewSimulator()
     first_q = simulator.start(
         interview_type=body.interview_type,
+        difficulty=body.difficulty,
         vacancy=body.vacancy,
         graduate=graduate,
         lang=body.lang,
