@@ -28,13 +28,11 @@ router = APIRouter(prefix="/resume", tags=["Resume"])
 
 @router.get("/educational-programs")
 def get_educational_programs(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
     """Get all educational programs"""
-    from app.models.educational_program import EducationalProgram
     programs = db.query(EducationalProgram).order_by(EducationalProgram.id).all()
-    # Возвращаем только code и name, faculty не показываем
     return [{"id": p.id, "code": p.code, "name": p.name} for p in programs]
 
 
@@ -63,7 +61,7 @@ def update_profile(
     if not graduate:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    # 1. Обновляем основные поля - БЕЗ ПРОВЕРКИ if value is not None
+    # 1. Обновляем основные поля
     update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
         setattr(graduate, field, value)
@@ -71,9 +69,12 @@ def update_profile(
 
     # 2. Обновляем опыт работы
     if 'experiences' in data.model_dump(exclude_unset=True):
+        # Удаляем старый опыт
         for exp in graduate.experiences[:]:
             db.delete(exp)
+            logger.info(f"Deleted experience: {exp.company}")
 
+        # Добавляем новый опыт
         for exp_data in data.experiences:
             if exp_data.company and exp_data.position:
                 new_exp = Experience(
@@ -82,24 +83,44 @@ def update_profile(
                     position=exp_data.position,
                     description=exp_data.description,
                     start_date=exp_data.start_date,
-                    end_date=exp_data.end_date,
+                    end_date=exp_data.end_date if exp_data.end_date else None,
                     is_internship=exp_data.is_internship
                 )
                 db.add(new_exp)
+                logger.info(f"Added experience: {exp_data.company} - {exp_data.position}")
 
-    # 3. Обновляем навыки
+    # 3. Обновляем сертификаты
+    if 'certificates' in data.model_dump(exclude_unset=True):
+        for cert in graduate.certificates[:]:
+            db.delete(cert)
+
+        for cert_data in data.certificates:
+            if cert_data.title:
+                new_cert = Certificate(
+                    graduate_id=graduate.id,
+                    title=cert_data.title,
+                    issuer=cert_data.issuer,
+                    issued_date=cert_data.issued_date,
+                    url=cert_data.url
+                )
+                db.add(new_cert)
+                logger.info(f"Added certificate: {cert_data.title}")
+
+    # 4. Обновляем навыки
     if 'skills' in data.model_dump(exclude_unset=True):
         for skill in graduate.skills[:]:
             db.delete(skill)
+            logger.info(f"Deleted skill: {skill.name}")
 
         for skill_data in data.skills:
             if skill_data.name:
                 new_skill = GraduateSkill(
                     graduate_id=graduate.id,
-                    name=skill_data.name,
+                    name=skill_data.name[:500],  # Ограничиваем до 500 символов
                     level=skill_data.level
                 )
                 db.add(new_skill)
+                logger.info(f"Added skill: {skill_data.name[:50]}...")
 
     db.commit()
     db.refresh(graduate)
@@ -139,10 +160,26 @@ def create_or_update_profile(
                     position=exp_data.position,
                     description=exp_data.description,
                     start_date=exp_data.start_date,
-                    end_date=exp_data.end_date,
+                    end_date=exp_data.end_date if exp_data.end_date else None,
                     is_internship=exp_data.is_internship
                 )
                 db.add(new_exp)
+
+    # Обновляем сертификаты
+    if 'certificates' in data.model_dump(exclude_unset=True):
+        for cert in graduate.certificates[:]:
+            db.delete(cert)
+
+        for cert_data in data.certificates:
+            if cert_data.title:
+                new_cert = Certificate(
+                    graduate_id=graduate.id,
+                    title=cert_data.title,
+                    issuer=cert_data.issuer,
+                    issued_date=cert_data.issued_date,
+                    url=cert_data.url
+                )
+                db.add(new_cert)
 
     # Обновляем навыки
     if 'skills' in data.model_dump(exclude_unset=True):
@@ -153,7 +190,7 @@ def create_or_update_profile(
             if skill_data.name:
                 new_skill = GraduateSkill(
                     graduate_id=graduate.id,
-                    name=skill_data.name,
+                    name=skill_data.name[:500],
                     level=skill_data.level
                 )
                 db.add(new_skill)
