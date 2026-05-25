@@ -1,16 +1,16 @@
 ﻿from pydantic import BaseModel
 from datetime import date
 from typing import Optional, List
-from .experience import ExperienceCreate, ExperienceRead
-from .certificate import CertificateCreate, CertificateRead
-from .skill import SkillCreate, SkillRead
+from .experience import ExperienceCreate
+from .certificate import CertificateCreate
+from .skill import SkillCreate
 
 
 class GraduateCreate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     middle_name: Optional[str] = None
-    specialty: Optional[str] = None  # Добавлено поле специальности
+    specialty: Optional[str] = None
     birth_date: Optional[date] = None
     phone: Optional[str] = None
     city: Optional[str] = None

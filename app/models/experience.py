@@ -1,6 +1,4 @@
-﻿from __future__ import annotations
-
-from datetime import date
+﻿from datetime import date
 from typing import Optional
 
 from sqlalchemy import String, Date, Text, ForeignKey, Boolean
@@ -20,5 +18,4 @@ class Experience(Base):
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_internship: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Убираем аннотацию типа
     graduate = relationship("Graduate", back_populates="experiences")

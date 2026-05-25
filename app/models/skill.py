@@ -1,8 +1,4 @@
-from __future__ import annotations
-
-from typing import Optional
-
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import String, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base
 
@@ -12,8 +8,7 @@ class GraduateSkill(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     graduate_id: Mapped[int] = mapped_column(ForeignKey("graduates.id"))
-    name: Mapped[str] = mapped_column(String(100))
-    level: Mapped[str] = mapped_column(String(50), default="beginner")
+    name: Mapped[str] = mapped_column(Text)  # Увеличено для длинных текстов
+    level: Mapped[str] = mapped_column(String(50), default="intermediate")
 
-    # Убираем аннотацию типа
     graduate = relationship("Graduate", back_populates="skills")

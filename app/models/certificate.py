@@ -1,6 +1,4 @@
-﻿from __future__ import annotations
-
-from datetime import date
+﻿from datetime import date
 from typing import Optional
 
 from sqlalchemy import String, Date, ForeignKey
@@ -18,5 +16,4 @@ class Certificate(Base):
     issued_date: Mapped[Optional[date]] = mapped_column(Date)
     url: Mapped[Optional[str]] = mapped_column(String(300))
 
-    # Убираем аннотацию типа
     graduate = relationship("Graduate", back_populates="certificates")

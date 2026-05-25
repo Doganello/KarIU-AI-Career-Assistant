@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import String, DateTime, Date, Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,7 +18,7 @@ class Graduate(Base):
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     middle_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    specialty: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # Специальность/профессия
+    specialty: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -43,38 +43,14 @@ class Graduate(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(
-        "User",
-        back_populates="graduate"
-    )
-
-    program: Mapped[Optional["EducationalProgram"]] = relationship(
-        "EducationalProgram",
-        back_populates="graduates"
-    )
-
-    experiences: Mapped[list["Experience"]] = relationship(
-        "Experience",
-        back_populates="graduate",
-        cascade="all, delete-orphan"
-    )
-
-    certificates: Mapped[list["Certificate"]] = relationship(
-        "Certificate",
-        back_populates="graduate",
-        cascade="all, delete-orphan"
-    )
-
-    skills: Mapped[list["GraduateSkill"]] = relationship(
-        "GraduateSkill",
-        back_populates="graduate",
-        cascade="all, delete-orphan"
-    )
+    user = relationship("User", back_populates="graduate")
+    program = relationship("EducationalProgram", back_populates="graduates")
+    experiences = relationship("Experience", back_populates="graduate", cascade="all, delete-orphan")
+    certificates = relationship("Certificate", back_populates="graduate", cascade="all, delete-orphan")
+    skills = relationship("GraduateSkill", back_populates="graduate", cascade="all, delete-orphan")
 
     @property
     def profile_completeness(self) -> int:
-        """Рассчет полноты заполнения профиля в процентах"""
-        # Основные поля (60%)
         main_fields = [
             self.first_name,
             self.last_name,
@@ -86,17 +62,15 @@ class Graduate(Base):
         filled_main = sum(1 for f in main_fields if f)
         base_score = int(filled_main / len(main_fields) * 60)
 
-        # Дополнительные бонусы (40%)
         bonus = 0
-        bonus += min(20, len(self.experiences) * 10)  # до 20% за опыт
-        bonus += min(10, len(self.certificates) * 5)  # до 10% за сертификаты
-        bonus += min(10, len(self.skills) * 3)  # до 10% за навыки
+        bonus += min(20, len(self.experiences) * 10)
+        bonus += min(10, len(self.certificates) * 5)
+        bonus += min(10, len(self.skills) * 3)
 
         return min(100, base_score + bonus)
 
     @property
     def full_name(self) -> str:
-        """Полное имя для отображения"""
         parts = [self.last_name, self.first_name, self.middle_name]
         return " ".join(p for p in parts if p)
 

@@ -4,10 +4,10 @@ from typing import Optional
 
 
 class CertificateCreate(BaseModel):
-    title:       str
-    issuer:      Optional[str]  = None
+    title: str
+    issuer: Optional[str] = None
     issued_date: Optional[date] = None
-    url:         Optional[str]  = None
+    url: Optional[str] = None
 
 
 class CertificateRead(CertificateCreate):
