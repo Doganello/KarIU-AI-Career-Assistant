@@ -61,20 +61,14 @@ def update_profile(
     if not graduate:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    # 1. Обновляем основные поля
     update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
         setattr(graduate, field, value)
         logger.info(f"Updated {field} = {value}")
 
-    # 2. Обновляем опыт работы
     if 'experiences' in data.model_dump(exclude_unset=True):
-        # Удаляем старый опыт
         for exp in graduate.experiences[:]:
             db.delete(exp)
-            logger.info(f"Deleted experience: {exp.company}")
-
-        # Добавляем новый опыт
         for exp_data in data.experiences:
             if exp_data.company and exp_data.position:
                 new_exp = Experience(
@@ -87,13 +81,10 @@ def update_profile(
                     is_internship=exp_data.is_internship
                 )
                 db.add(new_exp)
-                logger.info(f"Added experience: {exp_data.company} - {exp_data.position}")
 
-    # 3. Обновляем сертификаты
     if 'certificates' in data.model_dump(exclude_unset=True):
         for cert in graduate.certificates[:]:
             db.delete(cert)
-
         for cert_data in data.certificates:
             if cert_data.title:
                 new_cert = Certificate(
@@ -104,28 +95,21 @@ def update_profile(
                     url=cert_data.url
                 )
                 db.add(new_cert)
-                logger.info(f"Added certificate: {cert_data.title}")
 
-    # 4. Обновляем навыки
     if 'skills' in data.model_dump(exclude_unset=True):
         for skill in graduate.skills[:]:
             db.delete(skill)
-            logger.info(f"Deleted skill: {skill.name}")
-
         for skill_data in data.skills:
             if skill_data.name:
                 new_skill = GraduateSkill(
                     graduate_id=graduate.id,
-                    name=skill_data.name[:500],  # Ограничиваем до 500 символов
+                    name=skill_data.name[:500],
                     level=skill_data.level
                 )
                 db.add(new_skill)
-                logger.info(f"Added skill: {skill_data.name[:50]}...")
 
     db.commit()
     db.refresh(graduate)
-
-    logger.info(f"Profile updated successfully for graduate {graduate.id}")
     return graduate
 
 
@@ -142,16 +126,13 @@ def create_or_update_profile(
         db.add(graduate)
         db.flush()
 
-    # Обновляем основные поля
     update_data = data.model_dump(exclude_unset=True, exclude={'experiences', 'certificates', 'skills'})
     for field, value in update_data.items():
         setattr(graduate, field, value)
 
-    # Обновляем опыт работы
     if 'experiences' in data.model_dump(exclude_unset=True):
         for exp in graduate.experiences[:]:
             db.delete(exp)
-
         for exp_data in data.experiences:
             if exp_data.company and exp_data.position:
                 new_exp = Experience(
@@ -165,11 +146,9 @@ def create_or_update_profile(
                 )
                 db.add(new_exp)
 
-    # Обновляем сертификаты
     if 'certificates' in data.model_dump(exclude_unset=True):
         for cert in graduate.certificates[:]:
             db.delete(cert)
-
         for cert_data in data.certificates:
             if cert_data.title:
                 new_cert = Certificate(
@@ -181,11 +160,9 @@ def create_or_update_profile(
                 )
                 db.add(new_cert)
 
-    # Обновляем навыки
     if 'skills' in data.model_dump(exclude_unset=True):
         for skill in graduate.skills[:]:
             db.delete(skill)
-
         for skill_data in data.skills:
             if skill_data.name:
                 new_skill = GraduateSkill(
@@ -198,6 +175,43 @@ def create_or_update_profile(
     db.commit()
     db.refresh(graduate)
     return graduate
+
+
+# ── Генерация CV ──────────────────────────────────────────────────
+
+@router.post("/generate-cv")
+def generate_cv(
+        lang: str = "ru",
+        target_vacancy: str = "",
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
+    """Generate CV document in DOCX format"""
+    graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
+    if not graduate:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    generator = CVGenerator()
+    filename = generator.generate(graduate, lang=lang, vacancy=target_vacancy)
+
+    return {"download_url": f"/api/resume/download-cv/{filename}"}
+
+
+@router.get("/download-cv/{filename}")
+def download_cv(
+        filename: str,
+        current_user: User = Depends(get_current_user),
+):
+    """Download generated CV file"""
+    filepath = os.path.join("storage", "cvs", filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        filepath,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=filename
+    )
 
 
 # ── Опыт работы (отдельные эндпоинты) ─────────────────────────────
@@ -315,37 +329,6 @@ def delete_skill(
 
     db.delete(skill)
     db.commit()
-
-
-# ── Генерация CV ──────────────────────────────────────────────────
-
-@router.post("/generate")
-def generate_cv(
-        lang: str = "ru",
-        target_vacancy: str = "",
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
-):
-    """Generate CV document"""
-    graduate = db.query(Graduate).filter_by(user_id=current_user.id).first()
-    if not graduate:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    generator = CVGenerator()
-    filename = generator.generate(graduate, lang=lang, vacancy=target_vacancy)
-    return {"download_url": f"/api/resume/download/{filename}"}
-
-
-@router.get("/download/{filename}")
-def download_cv(
-        filename: str,
-        current_user: User = Depends(get_current_user)
-):
-    """Download generated CV file"""
-    path = os.path.join("storage", "cvs", filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path, filename=filename)
 
 
 # ── Оценка CV ─────────────────────────────────────────────────────
