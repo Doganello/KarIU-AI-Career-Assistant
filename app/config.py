@@ -4,21 +4,24 @@ import json
 
 
 class Settings(BaseSettings):
-    # Основные настройки
     DATABASE_URL: str
     SECRET_KEY: str
     JWT_SECRET_KEY: str
+
     ANTHROPIC_API_KEY: str = ""
     OPENROUTER_API_KEY: str = ""
-    DEEPSEEK_API_KEY: str = ""  # ← Добавлено
-    TELEGRAM_BOT_TOKEN: str = ""
+    DEEPSEEK_API_KEY: str = ""
+
+    TELEGRAM_BOT_TOKEN: str = "8964244726:AAEerjMsZPGnIbKmXxOZjYdGBpJqo7LEjL0"
+    BOT_DEFAULT_LANG: str = "ru"
+    BOT_VACANCIES_LIMIT: int = 15
+    BACKEND_URL: str = "http://127.0.0.1:8000"
+
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # JWT настройки
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
-    # CORS
     CORS_ORIGINS_raw: str = '["http://localhost:5173","http://127.0.0.1:5173"]'
 
     @property
