@@ -6,11 +6,7 @@ from telegram.ext import ContextTypes
 
 from app.telegram_bot.api_client import ApiClient, BackendError
 from app.telegram_bot.config import DEFAULT_LANG
-from app.telegram_bot.formatters import (
-    chunks,
-    profile_to_text,
-    vacancy_to_text,
-)
+from app.telegram_bot.formatters import chunks, profile_to_text, vacancy_to_text
 from app.telegram_bot.keyboards import MAIN_MENU, auth_keyboard
 from app.telegram_bot.storage import clear_session, get_session
 
@@ -19,7 +15,6 @@ HELP_TEXT = """
 <b>ℹ️ Команды бота</b>
 
 /start — открыть меню
-/login email password — вход в аккаунт приложения
 /logout — выйти
 /profile — показать профиль
 /vacancies — вакансии партнёров КарИУ
@@ -28,7 +23,10 @@ HELP_TEXT = """
 /chat — ИИ чат
 /parse_kariu — загрузить вакансии компаний-партнёров КарИУ
 
-Можно также нажимать кнопки меню.
+Авторизация:
+1. Нажми «🔐 Войти»
+2. Введи email
+3. Следующим сообщением введи пароль
 """
 
 
@@ -41,11 +39,24 @@ def _is_authorized(update: Update) -> bool:
     return bool(get_session(update.effective_user.id).token)
 
 
-async def _send_long(update: Update, text: str, parse_mode: str | None = ParseMode.HTML) -> None:
+def _clean_ai_text(text: str) -> str:
+    return (
+        text.replace("**", "")
+        .replace("### ", "")
+        .replace("## ", "")
+        .replace("# ", "")
+        .replace("```", "")
+        .replace("|---|", "")
+        .replace("|---", "")
+    )
+
+
+async def _send_long(update: Update, text: str, parse_mode=None) -> None:
+    text = _clean_ai_text(text)
+
     for part in chunks(text):
         await update.effective_message.reply_text(
             part,
-            parse_mode=parse_mode,
             disable_web_page_preview=True,
         )
 
@@ -53,6 +64,7 @@ async def _send_long(update: Update, text: str, parse_mode: str | None = ParseMo
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session = get_session(update.effective_user.id)
     session.waiting_for = None
+    session.login_email = None
 
     if _is_authorized(update):
         await update.message.reply_text(
@@ -61,9 +73,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     else:
         await update.message.reply_text(
-            "👋 Привет! Чтобы пользоваться ботом, войди в аккаунт приложения.\n\n"
-            "Формат входа:\n<code>/login email password</code>",
-            parse_mode=ParseMode.HTML,
+            "👋 Привет! Сначала нужно войти в аккаунт приложения.\n\n"
+            "Нажми кнопку «🔐 Войти».",
             reply_markup=auth_keyboard(),
         )
 
@@ -72,33 +83,19 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(
         HELP_TEXT,
         parse_mode=ParseMode.HTML,
-        reply_markup=MAIN_MENU,
+        reply_markup=MAIN_MENU if _is_authorized(update) else auth_keyboard(),
     )
 
 
 async def login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if len(context.args) < 2:
-        await update.message.reply_text(
-            "🔐 Введи email и пароль так:\n<code>/login student@mail.com password123</code>",
-            parse_mode=ParseMode.HTML,
-        )
-        return
+    session = get_session(update.effective_user.id)
+    session.waiting_for = "login_email"
+    session.login_email = None
 
-    email = context.args[0]
-    password = " ".join(context.args[1:])
-
-    try:
-        data = ApiClient().login(email, password)
-        session = get_session(update.effective_user.id)
-        session.token = data["access_token"]
-        session.waiting_for = None
-
-        await update.message.reply_text(
-            "✅ Вход выполнен. Теперь можно пользоваться ботом.",
-            reply_markup=MAIN_MENU,
-        )
-    except BackendError as exc:
-        await update.message.reply_text(f"⚠️ Не удалось войти.\n{exc}")
+    await update.message.reply_text(
+        "🔐 Вход в аккаунт\n\nВведите ваш email:",
+        reply_markup=auth_keyboard(),
+    )
 
 
 async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -179,10 +176,12 @@ async def career(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         text = _client(update).ai_chat(
             "Кем я могу работать с моей образовательной программой? "
-            "Дай список должностей, отраслей, стартовых позиций и план развития.",
+            "Дай список должностей, отраслей, стартовых позиций и план развития. "
+            "Пиши обычным текстом для Telegram. "
+            "Не используй Markdown, символы ** ## #, таблицы и HTML.",
             lang=DEFAULT_LANG,
         )
-        await _send_long(update, text, parse_mode=None)
+        await _send_long(update, text)
     except BackendError as exc:
         await update.message.reply_text(f"⚠️ Ошибка AI.\n{exc}")
 
@@ -196,10 +195,12 @@ async def skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         text = _client(update).ai_chat(
             "Какие навыки мне нужно усилить для трудоустройства? "
             "Учитывай мою образовательную программу, навыки и опыт. "
-            "Дай конкретный план на 30 дней.",
+            "Дай конкретный план на 30 дней. "
+            "Пиши обычным текстом для Telegram. "
+            "Не используй Markdown, символы ** ## #, таблицы и HTML.",
             lang=DEFAULT_LANG,
         )
-        await _send_long(update, text, parse_mode=None)
+        await _send_long(update, text)
     except BackendError as exc:
         await update.message.reply_text(f"⚠️ Ошибка AI.\n{exc}")
 
@@ -222,9 +223,10 @@ async def ai_chat_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text.strip()
+    session = get_session(update.effective_user.id)
 
     button_map = {
-        "🔐 Войти": "login_help",
+        "🔐 Войти": "login",
         "🔎 Вакансии": "vacancies",
         "🤖 ИИ чат": "ai_chat",
         "💼 Кем я могу работать?": "career",
@@ -235,8 +237,50 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     action = button_map.get(text)
 
-    if action == "login_help":
-        await update.message.reply_text("Войди так:\n/login email password")
+    if action == "login":
+        await login(update, context)
+        return
+
+    if session.waiting_for == "login_email":
+        session.login_email = text
+        session.waiting_for = "login_password"
+
+        await update.message.reply_text(
+            "✅ Email принят.\n\nТеперь введите пароль:",
+            reply_markup=auth_keyboard(),
+        )
+        return
+
+    if session.waiting_for == "login_password":
+        email = session.login_email
+        password = text
+
+        if not email:
+            session.waiting_for = "login_email"
+            await update.message.reply_text("Введите email ещё раз:")
+            return
+
+        try:
+            data = ApiClient().login(email, password)
+            session.token = data["access_token"]
+            session.waiting_for = None
+            session.login_email = None
+
+            await update.message.reply_text(
+                "✅ Вход выполнен. Теперь можно пользоваться ботом.",
+                reply_markup=MAIN_MENU,
+            )
+
+        except BackendError as exc:
+            session.waiting_for = "login_email"
+            session.login_email = None
+
+            await update.message.reply_text(
+                f"⚠️ Не удалось войти.\n{exc}\n\n"
+                "Попробуем ещё раз. Введите email:",
+                reply_markup=auth_keyboard(),
+            )
+
         return
 
     if action == "vacancies":
@@ -263,16 +307,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await help_command(update, context)
         return
 
-    session = get_session(update.effective_user.id)
-
     if not _is_authorized(update):
         await start(update, context)
         return
 
     if session.waiting_for == "ai_chat":
         try:
-            response = _client(update).ai_chat(text, lang=DEFAULT_LANG)
-            await _send_long(update, response, parse_mode=None)
+            response = _client(update).ai_chat(
+                text + "\n\nПиши обычным текстом для Telegram. Не используй Markdown, символы ** ## #, таблицы и HTML.",
+                lang=DEFAULT_LANG,
+            )
+            await _send_long(update, response)
         except BackendError as exc:
             await update.message.reply_text(f"⚠️ Ошибка AI.\n{exc}")
         return

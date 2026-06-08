@@ -6,6 +6,7 @@ from typing import Optional
 class UserSession:
     token: Optional[str] = None
     waiting_for: Optional[str] = None
+    login_email: Optional[str] = None
 
 
 _sessions: dict[int, UserSession] = {}
